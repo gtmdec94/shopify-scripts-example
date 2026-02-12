@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # ---- Infrastructure ----
+  postgres:
+    image: postgres:16-alpine
+    container_name: b2b-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: b2b_reseller
+      POSTGRES_USER: b2b_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-b2b_password}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U b2b_user -d b2b_reseller']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: b2b-redis
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: b2b-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+
+  # ---- Application Services ----
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: b2b-api
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      - DATABASE_URL=postgresql://b2b_user:${DB_PASSWORD:-b2b_password}@postgres:5432/b2b_reseller
+      - REDIS_URL=redis://redis:6379
+      - API_PORT=3001
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-change-me-refresh-in-production}
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY:-minioadmin}
+      - S3_SECRET_KEY=${S3_SECRET_KEY:-minioadmin}
+      - S3_BUCKET=b2b-uploads
+      - SHOPIFY_API_KEY=${SHOPIFY_API_KEY:-}
+      - SHOPIFY_API_SECRET=${SHOPIFY_API_SECRET:-}
+      - SHOPIFY_WEBHOOK_SECRET=${SHOPIFY_WEBHOOK_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  b2b-portal:
+    build:
+      context: .
+      dockerfile: apps/b2b-portal/Dockerfile
+    container_name: b2b-portal
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:3001
+    depends_on:
+      - api
+
+  mfg-dashboard:
+    build:
+      context: .
+      dockerfile: apps/mfg-dashboard/Dockerfile
+    container_name: b2b-mfg-dashboard
+    restart: always
+    ports:
+      - '3002:3002'
+    environment:
+      - NEXT_PUBLIC_MFG_API_URL=http://api:3001
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

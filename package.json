@@ -3,25 +3,28 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/api",
+    "apps/b2b-portal",
+    "apps/mfg-dashboard"
   ],
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "build:api": "npm run build --workspace=@b2b/api",
+    "build:portal": "npm run build --workspace=@b2b/portal",
+    "build:dashboard": "npm run build --workspace=@b2b/mfg-dashboard",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "db:migrate": "turbo run db:migrate --filter=@b2b/prisma-schema",
-    "db:seed": "turbo run db:seed --filter=@b2b/prisma-schema",
-    "db:studio": "turbo run db:studio --filter=@b2b/prisma-schema"
+    "db:generate": "cd packages/prisma-schema && npx prisma generate",
+    "db:migrate": "cd packages/prisma-schema && npx prisma migrate dev",
+    "db:seed": "cd packages/prisma-schema && npx ts-node prisma/seed.ts"
   },
   "devDependencies": {
     "turbo": "^2.3.0",
     "typescript": "^5.5.0",
-    "prettier": "^3.3.0",
-    "eslint": "^9.0.0"
+    "prettier": "^3.3.0"
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "packageManager": "npm@10.0.0"
+  }
 }

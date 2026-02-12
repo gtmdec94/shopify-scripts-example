@@ -58,7 +58,7 @@ export class OrdersCreateHandler {
     }
 
     // 3. Resolve line items to internal products
-    const resolvedItems = [];
+    const resolvedItems: any[] = [];
     let totalCost = new Prisma.Decimal(0);
     let totalResellerPrice = new Prisma.Decimal(0);
 
@@ -92,45 +92,51 @@ export class OrdersCreateHandler {
     }
 
     // 4. Create order + job items atomically
-    const order = await this.prisma.order.create({
-      data: {
-        userId: store.userId,
-        shopifyStoreId: store.id,
-        shopifyOrderId: String(payload.id),
-        shopifyOrderNumber: payload.name || `#${payload.order_number}`,
-        status: 'NEW',
-        totalCost,
-        totalResellerPrice,
-        currency: payload.currency || 'INR',
-        shippingAddress: payload.shipping_address
-          ? JSON.stringify(payload.shipping_address)
-          : null,
-        customerInfo: JSON.stringify({
-          email: payload.email,
-          firstName: payload.customer?.first_name,
-          lastName: payload.customer?.last_name,
-          phone: payload.phone || payload.customer?.phone,
-        }),
-        jobItems: {
-          create: resolvedItems.map((item) => ({
+    const order = await this.prisma.$transaction(async (tx) => {
+      const newOrder = await tx.order.create({
+        data: {
+          userId: store.userId,
+          shopifyStoreId: store.id,
+          shopifyOrderId: String(payload.id),
+          shopifyOrderNumber: payload.name || `#${payload.order_number}`,
+          status: 'NEW',
+          totalCost,
+          totalResellerPrice,
+          currency: payload.currency || 'INR',
+          shippingAddress: payload.shipping_address || Prisma.DbNull,
+          customerInfo: {
+            email: payload.email,
+            firstName: payload.customer?.first_name,
+            lastName: payload.customer?.last_name,
+            phone: payload.phone || payload.customer?.phone,
+          },
+        },
+      });
+
+      for (const item of resolvedItems) {
+        await tx.jobItem.create({
+          data: {
+            orderId: newOrder.id,
             productVariantId: item.productVariantId,
             quantity: item.quantity,
             unitCost: item.unitCost,
             status: 'NEW',
             manufacturerSku: item.manufacturerSku,
             printConfigId: item.printConfigId,
-            customizationData: item.customizationData
-              ? JSON.stringify(item.customizationData)
-              : null,
-            fileUploads: item.fileUploads ? JSON.stringify(item.fileUploads) : null,
-          })),
-        },
-      },
-      include: { jobItems: true },
+            customizationData: item.customizationData || Prisma.DbNull,
+            fileUploads: item.fileUploads || Prisma.DbNull,
+          },
+        });
+      }
+
+      return tx.order.findUnique({
+        where: { id: newOrder.id },
+        include: { jobItems: true },
+      });
     });
 
     this.logger.log(
-      `Created order ${order.id} with ${order.jobItems.length} job items for store ${shopDomain}`,
+      `Created order ${order?.id} with ${order?.jobItems.length} job items for store ${shopDomain}`,
     );
 
     return order;

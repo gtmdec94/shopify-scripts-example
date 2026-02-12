@@ -1,0 +1,30 @@
+{
+  "name": "@b2b/shopify-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "remix vite:build",
+    "dev": "shopify app dev",
+    "lint": "eslint app/",
+    "start": "remix-serve ./build/server/index.js"
+  },
+  "dependencies": {
+    "@remix-run/node": "^2.13.0",
+    "@remix-run/react": "^2.13.0",
+    "@remix-run/serve": "^2.13.0",
+    "@shopify/app-bridge-react": "^4.1.0",
+    "@shopify/polaris": "^13.0.0",
+    "@shopify/shopify-app-remix": "^3.3.0",
+    "@b2b/prisma-schema": "*",
+    "isbot": "^5.1.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@remix-run/dev": "^2.13.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.0",
+    "vite": "^5.4.0"
+  }
+}

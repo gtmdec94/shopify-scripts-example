@@ -1,0 +1,144 @@
+{% comment %}
+  B2B Reseller Platform — Product Customizer Block
+
+  This Theme App Extension block reads the product's customization schema
+  from a hidden metafield and renders input fields (file upload, text)
+  as line item properties. These properties flow through the cart into
+  the order payload and are captured by the ORDERS_CREATE webhook.
+
+  The metafield $app:b2b_reseller.customization_schema contains a JSON like:
+  {
+    "fields": [
+      {"type": "file", "name": "Upload Your Photo", "required": true, "accept": "image/*"},
+      {"type": "text", "name": "Personalization Text", "required": false, "maxLength": 50}
+    ]
+  }
+{% endcomment %}
+
+{% assign schema_json = product.metafields['b2b_reseller']['customization_schema'].value %}
+
+{% if schema_json != blank %}
+  <div class="b2b-customizer" id="b2b-product-customizer" data-schema='{{ schema_json }}'>
+    <h3 class="b2b-customizer__title">{{ block.settings.section_title }}</h3>
+
+    {% assign schema = schema_json | parse_json %}
+
+    {% if schema.fields %}
+      {% for field in schema.fields %}
+        <div class="b2b-customizer__field" data-field-type="{{ field.type }}" data-required="{{ field.required }}">
+          <label class="b2b-customizer__label" for="b2b-field-{{ forloop.index }}">
+            {{ field.name }}
+            {% if field.required %}<span class="b2b-customizer__required">*</span>{% endif %}
+          </label>
+
+          {% if field.type == 'file' %}
+            {%- comment -%} Hidden input stores the uploaded file URL as a line item property {%- endcomment -%}
+            <input
+              type="hidden"
+              name="properties[{{ field.name }}]"
+              id="b2b-field-{{ forloop.index }}-value"
+              class="b2b-customizer__hidden-value"
+            />
+            <input
+              type="file"
+              id="b2b-field-{{ forloop.index }}"
+              class="b2b-customizer__file-input"
+              accept="{{ field.accept | default: 'image/*' }}"
+              data-field-name="{{ field.name }}"
+              {% if field.required %}required{% endif %}
+            />
+            <div class="b2b-customizer__preview" id="b2b-preview-{{ forloop.index }}" style="display:none;">
+              <img src="" alt="Preview" class="b2b-customizer__preview-img" />
+              <span class="b2b-customizer__filename"></span>
+            </div>
+            <div class="b2b-customizer__upload-status" id="b2b-status-{{ forloop.index }}"></div>
+
+          {% elsif field.type == 'text' %}
+            <input
+              type="text"
+              name="properties[{{ field.name }}]"
+              id="b2b-field-{{ forloop.index }}"
+              class="b2b-customizer__text-input"
+              placeholder="{{ field.placeholder | default: '' }}"
+              maxlength="{{ field.maxLength | default: 255 }}"
+              {% if field.required %}required{% endif %}
+            />
+            {% if field.maxLength %}
+              <span class="b2b-customizer__char-count">0/{{ field.maxLength }}</span>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <style>
+    .b2b-customizer {
+      margin: 16px 0;
+      padding: 16px;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+    }
+    .b2b-customizer__title {
+      margin: 0 0 12px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .b2b-customizer__field {
+      margin-bottom: 16px;
+    }
+    .b2b-customizer__label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .b2b-customizer__required {
+      color: #e53e3e;
+    }
+    .b2b-customizer__file-input,
+    .b2b-customizer__text-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .b2b-customizer__preview {
+      margin-top: 8px;
+    }
+    .b2b-customizer__preview-img {
+      max-width: 120px;
+      max-height: 120px;
+      border-radius: 4px;
+      border: 1px solid #e5e5e5;
+    }
+    .b2b-customizer__upload-status {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .b2b-customizer__char-count {
+      font-size: 12px;
+      color: #9ca3af;
+      float: right;
+    }
+  </style>
+
+  <script src="{{ 'customizer.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Product Customizer",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "section_title",
+      "label": "Section Title",
+      "default": "Personalize Your Product"
+    }
+  ]
+}
+{% endschema %}

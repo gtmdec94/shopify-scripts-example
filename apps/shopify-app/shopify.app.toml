@@ -1,0 +1,27 @@
+# Shopify App Configuration
+# See: https://shopify.dev/docs/apps/tools/cli/configuration
+
+name = "B2B Reseller Connector"
+client_id = ""  # Fill in from Shopify Partners Dashboard
+application_url = "https://your-app.ngrok.io"
+
+[access_scopes]
+scopes = "read_products,write_products,read_orders,write_orders,read_fulfillments,write_fulfillments"
+
+[auth]
+redirect_urls = ["https://your-app.ngrok.io/auth/callback"]
+
+[webhooks]
+api_version = "2024-10"
+
+  [webhooks.subscriptions]
+  topics = ["orders/create", "orders/updated", "app/uninstalled", "products/delete"]
+  uri = "/webhooks"
+
+[app_proxy]
+url = "https://your-api.example.com/api/uploads/storefront"
+subpath = "b2b-upload"
+prefix = "apps"
+
+[pos]
+embedded = false
